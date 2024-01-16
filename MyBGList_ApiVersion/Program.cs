@@ -14,6 +14,7 @@ builder.Services.AddSwaggerGen(options =>
 {
 	options.SwaggerDoc("v1", new OpenApiInfo { Title = "MyBGList", Version = "v1.0" });
 	options.SwaggerDoc("v2", new OpenApiInfo { Title = "MyBGList", Version = "v2.0" });
+	options.SwaggerDoc("v3", new OpenApiInfo { Title = "MyBGList", Version = "v3.0" });
 });
 
 builder.Services.AddCors(options =>
@@ -29,6 +30,12 @@ builder.Services.AddCors(options =>
 		cfg.AllowAnyOrigin();
 		cfg.AllowAnyHeader();
 		cfg.AllowAnyMethod();
+	});
+	options.AddPolicy(name: "AnyOrigin_GetOnly", cfg =>
+	{
+		cfg.AllowAnyOrigin();
+		cfg.WithMethods("GET");
+		cfg.AllowAnyHeader();
 	});
 });
 
@@ -54,6 +61,7 @@ if (app.Configuration.GetValue<bool>("UseSwagger"))
 	{
 		options.SwaggerEndpoint("/swagger/v1/swagger.json", "MyBGList v1");
 		options.SwaggerEndpoint("/swagger/v2/swagger.json", "MyBGList v2");
+		options.SwaggerEndpoint("/swagger/v3/swagger.json", "MyBGList v3");
 	});
 }
 
@@ -84,7 +92,7 @@ app.MapGet("/v{version:ApiVersion}/error/test",
 app.MapGet("/v{version:ApiVersion}/cod/test",
 	[ApiVersion("1.0")]
 	[ApiVersion("2.0")]
-	[EnableCors("AnyOrigin")]
+	[EnableCors("AnyOrigin_GetOnly")]
 	[ResponseCache(NoStore = true)] () =>
 	Results.Text("<script>" +
 		"window.alert('Your client supports JavaScript!" +
