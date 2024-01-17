@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MyBGList.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +28,12 @@ builder.Services.AddCors(options =>
 	});
 });
 
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+	options.UseSqlServer(
+		builder.Configuration.GetConnectionString("DefaultConnection"))
+	);
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -48,16 +56,16 @@ app.UseAuthorization();
 
 app.MapGet("/error",
 	[EnableCors("AnyOrigin")]
-	[ResponseCache(NoStore = true)] () =>
+[ResponseCache(NoStore = true)] () =>
 	Results.Problem());
 app.MapGet("/error/test",
 	[EnableCors("AnyOrigin")]
-	[ResponseCache(NoStore = true)] () =>
+[ResponseCache(NoStore = true)] () =>
 	{ throw new Exception("test"); })
 	.RequireCors("AnyOrigin");
 app.MapGet("/cod/test",
 	[EnableCors("AnyOrigin")]
-	[ResponseCache(NoStore = true)] () =>
+[ResponseCache(NoStore = true)] () =>
 	Results.Text("<script>" +
 		"window.alert('Your client supports JavaScript!" +
 		"\\r\\n\\r\\n" +
