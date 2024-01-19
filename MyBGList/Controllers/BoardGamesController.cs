@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using MyBGList.DTO;
 using MyBGList.Models;
+using System.Linq.Dynamic.Core;
 
 namespace MyBGList.Controllers
 {
@@ -8,49 +10,109 @@ namespace MyBGList.Controllers
 	[ApiController]
 	public class BoardGamesController : ControllerBase
 	{
+		private readonly ApplicationDbContext _context;
 		private readonly ILogger<BoardGamesController> _logger;
 
-		public BoardGamesController(ILogger<BoardGamesController> logger)
+		public BoardGamesController(ApplicationDbContext context,
+			ILogger<BoardGamesController> logger)
 		{
+			_context = context;
 			_logger = logger;
 		}
 
 		[HttpGet(Name = "GetBoardGames")]
 		[ResponseCache(Location = ResponseCacheLocation.Any, Duration = 60)]
-		public RestDTO<BoardGame[]> Get()
+		public async Task<RestDTO<BoardGame[]>> Get(
+			int pageIndex = 0,
+			int pageSize = 10,
+			string sortColumn = "Name",
+			string sortOrder = "ASC",
+			string? filterQuery = null)
 		{
+			var query = _context.BoardGames.AsQueryable();
+
+			if (!string.IsNullOrEmpty(filterQuery))
+			{
+				query = query.Where(b => b.Name.Contains(filterQuery));
+			}
+
+			var recordCount = await query.CountAsync();
+
+			query = query
+				.OrderBy($"{sortColumn} {sortOrder}")
+				.Skip(pageIndex * pageSize)
+				.Take(pageSize);
+
 			return new RestDTO<BoardGame[]>
 			{
-				Data = [
-					new BoardGame()
-					{
-						Id = 1,
-						Name = "Axis & Allies",
-						Year = 1981,
-						MinPlayers = 2,
-						MaxPlayers = 5
-					},
-					new BoardGame()
-					{
-						Id = 2,
-						Name = "Citadels",
-						Year = 2000,
-						MinPlayers = 2,
-						MaxPlayers = 8
-					},
-					new BoardGame()
-					{
-						Id = 3,
-						Name = "Terraforming Mars",
-						Year = 2016,
-						MinPlayers = 1,
-						MaxPlayers = 5
-					}],
+				Data = await query.ToArrayAsync(),
+				PageIndex = pageIndex,
+				PageSize = pageSize,
+				RecordCount = recordCount,
 				Links = [
 					new LinkDTO(
-						Url.Action(null, "BoardGames", null, Request.Scheme)!,
+						Url.Action(null, "BoardGames", new { pageIndex, pageSize }, Request.Scheme)!,
 						"self",
 						"GET")
+				]
+			};
+		}
+
+		[HttpPost(Name = "UpdateBoardGame")]
+		[ResponseCache(NoStore = true)]
+		public async Task<RestDTO<BoardGame?>> Post(BoardGameDTO model)
+		{
+			var boardgame = await _context.BoardGames
+				.Where(b => b.Id == model.Id)
+				.FirstOrDefaultAsync();
+
+			if (boardgame != null)
+			{
+				if (!string.IsNullOrEmpty(model.Name))
+					boardgame.Name = model.Name;
+
+				if (model.Year.HasValue && model.Year.Value > 0)
+					boardgame.Year = model.Year.Value;
+
+				boardgame.LastModifiedDate = DateTime.UtcNow;
+				_context.BoardGames.Update(boardgame);
+				await _context.SaveChangesAsync();
+			}
+
+			return new RestDTO<BoardGame?>
+			{
+				Data = boardgame,
+				Links = [
+					new LinkDTO(
+						Url.Action(null, "BoardGames", model, Request.Scheme)!,
+						"self",
+						"POST")
+				]
+			};
+		}
+
+		[HttpDelete(Name = "DeleteBoardGame")]
+		[ResponseCache(NoStore = true)]
+		public async Task<RestDTO<BoardGame?>> Delete(int id)
+		{
+			var boardgame = await _context.BoardGames
+				.Where(b => b.Id == id)
+				.FirstOrDefaultAsync();
+
+			if (boardgame != null)
+			{
+				_context.BoardGames.Remove(boardgame);
+				await _context.SaveChangesAsync();
+			}
+
+			return new RestDTO<BoardGame?>
+			{
+				Data = boardgame,
+				Links = [
+					new LinkDTO(
+						Url.Action(null, "BoardGames", id, Request.Scheme)!,
+						"self",
+						"DELETE")
 				]
 			};
 		}
