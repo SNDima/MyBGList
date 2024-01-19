@@ -33,7 +33,7 @@ namespace MyBGList.Controllers
 
 			if (!string.IsNullOrEmpty(filterQuery))
 			{
-				query = query.Where(b => b.Name.Contains(filterQuery));
+				query = query.Where(b => b.Name.StartsWith(filterQuery));
 			}
 
 			var recordCount = await query.CountAsync();
@@ -74,6 +74,18 @@ namespace MyBGList.Controllers
 				if (model.Year.HasValue && model.Year.Value > 0)
 					boardgame.Year = model.Year.Value;
 
+				if (model.MinPlayers.HasValue && model.MinPlayers.Value > 0)
+					boardgame.MinPlayers = model.MinPlayers.Value;
+
+				if (model.MaxPlayers.HasValue && model.MaxPlayers.Value > 0)
+					boardgame.MaxPlayers = model.MaxPlayers.Value;
+
+				if (model.PlayTime.HasValue && model.PlayTime.Value > 0)
+					boardgame.PlayTime = model.PlayTime.Value;
+
+				if (model.MinAge.HasValue && model.MinAge.Value > 0)
+					boardgame.MinAge = model.MinAge.Value;
+
 				boardgame.LastModifiedDate = DateTime.UtcNow;
 				_context.BoardGames.Update(boardgame);
 				await _context.SaveChangesAsync();
@@ -93,24 +105,33 @@ namespace MyBGList.Controllers
 
 		[HttpDelete(Name = "DeleteBoardGame")]
 		[ResponseCache(NoStore = true)]
-		public async Task<RestDTO<BoardGame?>> Delete(int id)
+		public async Task<RestDTO<BoardGame[]?>> Delete(string idList)
 		{
-			var boardgame = await _context.BoardGames
-				.Where(b => b.Id == id)
-				.FirstOrDefaultAsync();
-
-			if (boardgame != null)
+			var idsToDelete = new List<int>();
+			foreach (var id in idList.Split(',', StringSplitOptions.TrimEntries))
 			{
-				_context.BoardGames.Remove(boardgame);
+				if (int.TryParse(id, out var gameId))
+				{
+					idsToDelete.Add(gameId);
+				}
+			};
+
+			var boardgames = await _context.BoardGames
+				.Where(b => idsToDelete.Contains(b.Id))
+				.ToArrayAsync();
+
+			if (boardgames != null && boardgames.Any())
+			{
+				_context.BoardGames.RemoveRange(boardgames);
 				await _context.SaveChangesAsync();
 			}
 
-			return new RestDTO<BoardGame?>
+			return new RestDTO<BoardGame[]?>
 			{
-				Data = boardgame,
+				Data = boardgames,
 				Links = [
 					new LinkDTO(
-						Url.Action(null, "BoardGames", id, Request.Scheme)!,
+						Url.Action(null, "BoardGames", idList, Request.Scheme)!,
 						"self",
 						"DELETE")
 				]
