@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MyBGList.Models;
+using MyBGList.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+	options.ParameterFilter<SortColumnFilter>();
+	options.ParameterFilter<SortOrderFilter>();
+});
 
 builder.Services.AddCors(options =>
 {
