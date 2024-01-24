@@ -103,9 +103,26 @@ app.MapGet("/error",
 		details.Extensions["traceId"] =
 			System.Diagnostics.Activity.Current?.Id
 			  ?? context.TraceIdentifier;
-		details.Type =
-			"https://tools.ietf.org/html/rfc7231#section-6.6.1";
-		details.Status = StatusCodes.Status500InternalServerError;
+
+		if (exceptionHandler?.Error is NotImplementedException)
+		{
+			details.Type =
+				"https://tools.ietf.org/html/rfc7231#section-6.6.2";
+			details.Status = StatusCodes.Status501NotImplemented;
+		}
+		else if (exceptionHandler?.Error is TimeoutException)
+		{
+			details.Type =
+				"https://tools.ietf.org/html/rfc7231#section-6.6.5";
+			details.Status = StatusCodes.Status504GatewayTimeout;
+		}
+		else
+		{
+			details.Type =
+				"https://tools.ietf.org/html/rfc7231#section-6.6.1";
+			details.Status = StatusCodes.Status500InternalServerError;
+		}
+
 		return Results.Problem(details);
 	});
 
