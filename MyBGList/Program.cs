@@ -2,10 +2,16 @@ using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MyBGList.Constants;
 using MyBGList.Models;
 using MyBGList.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging
+	.ClearProviders()
+	.AddSimpleConsole()
+	.AddDebug();
 
 // Add services to the container.
 
@@ -106,6 +112,10 @@ app.MapGet("/error",
 		details.Type =
 			"https://tools.ietf.org/html/rfc7231#section-6.6.1";
 		details.Status = StatusCodes.Status500InternalServerError;
+
+		app.Logger.LogError(CustomLogEvents.Error_Get,
+			exceptionHandler?.Error, "An unhandled exception occured.");
+
 		return Results.Problem(details);
 	});
 
