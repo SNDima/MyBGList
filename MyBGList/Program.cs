@@ -12,7 +12,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging
 	.ClearProviders()
-	.AddSimpleConsole()
+	.AddJsonConsole(options =>
+	{
+		options.TimestampFormat = "HH:mm";
+		options.UseUtcTimestamp = true;
+	})
 	.AddDebug();
 //.AddApplicationInsights(telemetry =>
 //	telemetry.ConnectionString = builder.Configuration["Azure:ApplicationInsights:ConnectionString"],
@@ -24,9 +28,15 @@ builder.Host.UseSerilog((ctx, lc) =>
 	lc.ReadFrom.Configuration(ctx.Configuration);
 	lc.Enrich.WithMachineName();
 	lc.Enrich.WithThreadId();
+	lc.Enrich.WithThreadName();
 	lc.WriteTo.File("Logs/log.txt",
-		outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] [{MachineName} #{ThreadId}] " +
+		outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] [{MachineName} #{ThreadId} {ThreadName}] " +
 			"{Message:lj}{NewLine}{Exception}",
+		rollingInterval: RollingInterval.Day);
+	lc.WriteTo.File("Logs/errors.txt",
+		outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] [{MachineName} #{ThreadId} {ThreadName}] " +
+			"{Message:lj}{NewLine}{Exception}",
+		restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Error,
 		rollingInterval: RollingInterval.Day);
 	lc.WriteTo.MSSqlServer(connectionString:
 		ctx.Configuration.GetConnectionString("DefaultConnection"),
@@ -150,7 +160,8 @@ app.MapGet("/error",
 		details.Status = StatusCodes.Status500InternalServerError;
 
 		app.Logger.LogError(CustomLogEvents.Error_Get,
-			exceptionHandler?.Error, "An unhandled exception occured.");
+			exceptionHandler?.Error, "An unhandled exception occured: {errorMessage}.",
+			exceptionHandler?.Error.Message);
 
 		return Results.Problem(details);
 	});
