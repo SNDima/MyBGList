@@ -28,42 +28,44 @@ namespace MyBGList.Controllers
 		}
 
 		[HttpGet(Name = "GetBoardGames")]
-		[ResponseCache(CacheProfileName = "Any-60")]
+		[ResponseCache(CacheProfileName = "Client-120")]
 		public async Task<RestDTO<BoardGame[]>> Get(
 			[FromQuery] RequestDTO<BoardGameDTO> input)
 		{
 			_logger.LogInformation(CustomLogEvents.BoardGamesController_Get,
 				"Get method started.");
 
-			var query = _context.BoardGames.AsQueryable();
-
-			if (!string.IsNullOrEmpty(input.FilterQuery))
-			{
-				query = query.Where(b => b.Name.Contains(input.FilterQuery));
-			}
-
-			var recordCount = await query.CountAsync();
-
-			BoardGame[]? result = null;
+			(int recordCount, BoardGame[]? result) dataTuple = (0, null);
 			var cacheKey = $"{input.GetType()}-{JsonSerializer.Serialize(input)}";
-			if(!_memoryCache.TryGetValue<BoardGame[]>(cacheKey, out result))
+			if(!_memoryCache.TryGetValue(cacheKey, out dataTuple))
 			{
+				var query = _context.BoardGames.AsQueryable();
+
+				if (!string.IsNullOrEmpty(input.FilterQuery))
+				{
+					query = query.Where(b => b.Name.Contains(input.FilterQuery));
+				}
+
+				dataTuple.recordCount = await query.CountAsync();
+
 				query = query
 					.OrderBy($"{input.SortColumn} {input.SortOrder}")
 					.Skip(input.PageIndex * input.PageSize)
 					.Take(input.PageSize);
-				result = await query.ToArrayAsync();
-				_memoryCache.Set(cacheKey, result, new TimeSpan(0, 0, 30)); // 30 sec AbsoluteExpiration
+				
+				dataTuple.result = await query.ToArrayAsync();
+
+				_memoryCache.Set(cacheKey, dataTuple, new TimeSpan(0, 0, 30)); // 30 sec AbsoluteExpiration
 			}
 
 			
 
 			return new RestDTO<BoardGame[]>
 			{
-				Data = result,
+				Data = dataTuple.result,
 				PageIndex = input.PageIndex,
 				PageSize = input.PageSize,
-				RecordCount = recordCount,
+				RecordCount = dataTuple.recordCount,
 				Links = [
 					new LinkDTO(
 						Url.Action(null, "BoardGames", new { input.PageIndex, input.PageSize }, Request.Scheme)!,

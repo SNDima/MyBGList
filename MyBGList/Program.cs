@@ -68,6 +68,11 @@ builder.Services.AddControllers(options =>
 		Location = ResponseCacheLocation.Any,
 		Duration = 60
 	});
+	options.CacheProfiles.Add("Client-120", new CacheProfile
+	{
+		Location = ResponseCacheLocation.Client,
+		Duration = 120
+	});
 });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -104,8 +109,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddResponseCaching(options =>
 {
-	options.MaximumBodySize = 32 * 1024 * 1024; // 32 MB
-	options.SizeLimit = 50 * 1024 * 1024; // 50 MB
+	options.MaximumBodySize = 128 * 1024 * 1024; // 128 MB
+	options.SizeLimit = 200 * 1024 * 1024; // 200 MB
+	options.UseCaseSensitivePaths = true;
 });
 
 builder.Services.AddMemoryCache();
@@ -114,7 +120,7 @@ builder.Services.AddMemoryCache();
 //{
 //	options.ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 //	options.SchemaName = "dbo";
-//	options.TableName = "AppCache";
+//	options.TableName = "SQLCache";
 //});
 builder.Services.AddStackExchangeRedisCache(options =>
 {
