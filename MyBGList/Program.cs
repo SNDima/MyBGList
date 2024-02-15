@@ -61,6 +61,13 @@ builder.Services.AddControllers(options =>
 		(x, y) => $"The value '{x}' is not valid for {y}.");
 	options.ModelBindingMessageProvider.SetMissingKeyOrValueAccessor(
 		() => $"A value is required.");
+
+	options.CacheProfiles.Add("NoCache", new CacheProfile { NoStore = true });
+	options.CacheProfiles.Add("Any-60", new CacheProfile
+	{
+		Location = ResponseCacheLocation.Any,
+		Duration = 60
+	});
 });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -94,6 +101,25 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Code replaced by the [ManualValidationFilter] attribute
 // builder.Services.Configure<ApiBehaviorOptions>(options =>
 //	 options.SuppressModelStateInvalidFilter = true);
+
+builder.Services.AddResponseCaching(options =>
+{
+	options.MaximumBodySize = 32 * 1024 * 1024; // 32 MB
+	options.SizeLimit = 50 * 1024 * 1024; // 50 MB
+});
+
+builder.Services.AddMemoryCache();
+
+//builder.Services.AddDistributedSqlServerCache(options =>
+//{
+//	options.ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+//	options.SchemaName = "dbo";
+//	options.TableName = "AppCache";
+//});
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+	options.Configuration = builder.Configuration["Redis:ConnectionString"];
+});
 
 var app = builder.Build();
 
@@ -131,11 +157,24 @@ app.UseHttpsRedirection();
 
 app.UseCors();
 
+app.UseResponseCaching();
+
 app.UseAuthorization();
+
+app.Use((context, next) =>
+{
+	context.Response.GetTypedHeaders().CacheControl =
+		new Microsoft.Net.Http.Headers.CacheControlHeaderValue
+		{
+			NoCache = true,
+			NoStore = true
+		};
+	return next.Invoke();
+});
 
 app.MapGet("/error",
 	[EnableCors("AnyOrigin")]
-[ResponseCache(NoStore = true)] (HttpContext context) =>
+[ResponseCache(CacheProfileName = "NoCache")] (HttpContext context) =>
 	{
 		var exceptionHandler =
 			context.Features.Get<IExceptionHandlerPathFeature>();
@@ -157,13 +196,13 @@ app.MapGet("/error",
 
 app.MapGet("/error/test",
 	[EnableCors("AnyOrigin")]
-[ResponseCache(NoStore = true)] () =>
+[ResponseCache(CacheProfileName = "NoCache")] () =>
 		{ throw new Exception("test"); })
 	.RequireCors("AnyOrigin");
 
 app.MapGet("/cod/test",
 	[EnableCors("AnyOrigin")]
-[ResponseCache(NoStore = true)] () =>
+[ResponseCache(CacheProfileName = "NoCache")] () =>
 	Results.Text("<script>" +
 		"window.alert('Your client supports JavaScript!" +
 		"\\r\\n\\r\\n" +
@@ -173,6 +212,21 @@ app.MapGet("/cod/test",
 		"</script>" +
 		"<noscript>Your client does not support JavaScript</noscript>",
 		"text/html"));
+
+app.MapGet("/cache/test/1",
+	[EnableCors("AnyOrigin")]
+(HttpContext context) =>
+	{
+		context.Response.Headers["cache-control"] = "no-cache, no-store";
+		return Results.Ok();
+	});
+
+app.MapGet("/cache/test/2",
+	[EnableCors("AnyOrigin")]
+(HttpContext context) =>
+	{
+		return Results.Ok();
+	});
 
 app.MapControllers();
 
