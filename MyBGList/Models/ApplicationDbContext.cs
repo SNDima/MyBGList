@@ -1,9 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace MyBGList.Models
 {
 	public class ApplicationDbContext(
-		DbContextOptions<ApplicationDbContext> options) : DbContext(options)
+		DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApiUser>(options)
 	{
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
