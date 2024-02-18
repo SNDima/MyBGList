@@ -173,6 +173,12 @@ namespace MyBGList.Controllers
 				rolesCreated++;
 			}
 
+			if (!await _roleManager.RoleExistsAsync(RoleNames.SuperAdmin))
+			{
+				await _roleManager.CreateAsync(new IdentityRole(RoleNames.SuperAdmin));
+				rolesCreated++;
+			}
+
 			var testModerator = await _userManager.FindByNameAsync("TestModerator");
 			if (testModerator != null && !await _userManager.IsInRoleAsync(
 				testModerator, RoleNames.Moderator))
@@ -190,6 +196,19 @@ namespace MyBGList.Controllers
 					RoleNames.Moderator);
 				await _userManager.AddToRoleAsync(testAdministrator,
 					RoleNames.Administrator);
+				usersAddedToRoles++;
+			}
+
+			var testSuperAdmin = await _userManager.FindByNameAsync("TestSuperAdmin");
+			if (testSuperAdmin != null && !await _userManager.IsInRoleAsync(
+				testSuperAdmin, RoleNames.SuperAdmin))
+			{
+				await _userManager.AddToRoleAsync(testSuperAdmin,
+					RoleNames.Moderator);
+				await _userManager.AddToRoleAsync(testSuperAdmin,
+					RoleNames.Administrator);
+				await _userManager.AddToRoleAsync(testSuperAdmin,
+					RoleNames.SuperAdmin);
 				usersAddedToRoles++;
 			}
 
