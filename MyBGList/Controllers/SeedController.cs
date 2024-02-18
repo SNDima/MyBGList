@@ -5,28 +5,37 @@ using Microsoft.EntityFrameworkCore;
 using MyBGList.Models;
 using MyBGList.Models.Csv;
 using System.Globalization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using MyBGList.Constants;
 
 namespace MyBGList.Controllers
 {
-	[Route("[controller]")]
+	[Authorize(Roles = RoleNames.Administrator)]
+	[Route("[controller]/[action]")]
 	[ApiController]
 	public class SeedController : ControllerBase
 	{
 		private readonly ApplicationDbContext _context;
 		private readonly IWebHostEnvironment _env;
 		private readonly ILogger<SeedController> _logger;
+		private readonly RoleManager<IdentityRole> _roleManager;
+		private readonly UserManager<ApiUser> _userManager;
 
 		public SeedController(ApplicationDbContext context,
-			IWebHostEnvironment env, ILogger<SeedController> logger)
+			IWebHostEnvironment env, ILogger<SeedController> logger,
+			RoleManager<IdentityRole> roleManager, UserManager<ApiUser> userManager)
 		{
 			_context = context;
 			_env = env;
 			_logger = logger;
+			_roleManager = roleManager;
+			_userManager = userManager;
 		}
 
-		[HttpPut(Name = "Seed")]
+		[HttpPut]
 		[ResponseCache(CacheProfileName = "NoCache")]
-		public async Task<IActionResult> Put()
+		public async Task<IActionResult> BoardGameData()
 		{
 			// SETUP
 			var config = new CsvConfiguration(CultureInfo.GetCultureInfo("pt-BR"))
@@ -142,6 +151,52 @@ namespace MyBGList.Controllers
 				Domains = _context.Domains.Count(),
 				Mechanics = _context.Mechanics.Count(),
 				SkippedRows = skippedRows
+			});
+		}
+
+		[HttpPost]
+		[ResponseCache(NoStore = true)]
+		public async Task<IActionResult> AuthData()
+		{
+			int rolesCreated = 0;
+			int usersAddedToRoles = 0;
+
+			if(!await _roleManager.RoleExistsAsync(RoleNames.Moderator))
+			{
+				await _roleManager.CreateAsync(new IdentityRole(RoleNames.Moderator));
+				rolesCreated++;
+			}
+
+			if (!await _roleManager.RoleExistsAsync(RoleNames.Administrator))
+			{
+				await _roleManager.CreateAsync(new IdentityRole(RoleNames.Administrator));
+				rolesCreated++;
+			}
+
+			var testModerator = await _userManager.FindByNameAsync("TestModerator");
+			if (testModerator != null && !await _userManager.IsInRoleAsync(
+				testModerator, RoleNames.Moderator))
+			{
+				await _userManager.AddToRoleAsync(testModerator,
+					RoleNames.Moderator);
+				usersAddedToRoles++;
+			}
+
+			var testAdministrator = await _userManager.FindByNameAsync("TestAdministrator");
+			if (testAdministrator != null && !await _userManager.IsInRoleAsync(
+				testAdministrator, RoleNames.Administrator))
+			{
+				await _userManager.AddToRoleAsync(testAdministrator,
+					RoleNames.Moderator);
+				await _userManager.AddToRoleAsync(testAdministrator,
+					RoleNames.Administrator);
+				usersAddedToRoles++;
+			}
+
+			return new JsonResult(new
+			{
+				RolesCreated = rolesCreated,
+				UsersAddedToRoles = usersAddedToRoles
 			});
 		}
 	}

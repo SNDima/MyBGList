@@ -102,6 +102,8 @@ namespace MyBGList.Controllers
 						{
 							new Claim(ClaimTypes.Name, user.UserName)
 						};
+						claims.AddRange((await _userManager.GetRolesAsync(user))
+							.Select(r => new Claim(ClaimTypes.Role, r)));
 
 						var jwtObject = new JwtSecurityToken(
 							issuer: _configuration["JWT:Issuer"],

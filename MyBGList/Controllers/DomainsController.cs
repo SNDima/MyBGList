@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MyBGList.Attributes;
+using MyBGList.Constants;
 using MyBGList.DTO;
 using MyBGList.Models;
 using System.Linq.Dynamic.Core;
@@ -80,6 +82,7 @@ namespace MyBGList.Controllers
 			};
 		}
 
+		[Authorize(Roles = RoleNames.Moderator)]
 		[HttpPost(Name = "UpdateDomain")]
 		[ResponseCache(CacheProfileName = "NoCache")]
 		public async Task<RestDTO<Domain?>> Post(DomainDTO model)
@@ -110,6 +113,7 @@ namespace MyBGList.Controllers
 			};
 		}
 
+		[Authorize(Roles = RoleNames.Administrator)]
 		[HttpDelete(Name = "DeleteDomain")]
 		[ResponseCache(CacheProfileName = "NoCache")]
 		public async Task<RestDTO<Domain?>> Delete(int id)

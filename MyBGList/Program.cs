@@ -1,15 +1,18 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using MyBGList.Constants;
 using MyBGList.Models;
 using MyBGList.Swagger;
 using Serilog;
 using Serilog.Sinks.MSSqlServer;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -78,6 +81,31 @@ builder.Services.AddSwaggerGen(options =>
 {
 	options.ParameterFilter<SortColumnFilter>();
 	options.ParameterFilter<SortOrderFilter>();
+
+	options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+	{
+		In = ParameterLocation.Header,
+		Description = "Please enter token",
+		Name = "Authorization",
+		Type = SecuritySchemeType.Http,
+		BearerFormat = "JWT",
+		Scheme = "bearer"
+	});
+
+	options.AddSecurityRequirement(new OpenApiSecurityRequirement
+	{
+		{
+			new OpenApiSecurityScheme
+			{
+				Reference = new OpenApiReference
+				{
+					Type = ReferenceType.SecurityScheme,
+					Id = "Bearer"
+				}
+			},
+			Array.Empty<string>()
+		}
+	});
 });
 
 builder.Services.AddCors(options =>
@@ -132,6 +160,23 @@ builder.Services.AddAuthentication(options =>
 		  System.Text.Encoding.UTF8.GetBytes(
 			  builder.Configuration["JWT:SigningKey"]))
 	};
+});
+
+builder.Services.AddAuthorization(options =>
+{
+	options.AddPolicy("ModeratorWithMobilePhone", policy =>
+	{
+		policy.RequireClaim(ClaimTypes.Role, RoleNames.Moderator)
+			.RequireClaim(ClaimTypes.MobilePhone);
+	});
+
+	options.AddPolicy("MinAge18", policy =>
+		policy.RequireAssertion(ctx => ctx.User.HasClaim(c => c.Type == ClaimTypes.DateOfBirth)
+				&& DateTime.ParseExact("yyyyMMdd",
+					ctx.User.Claims.First(c =>
+						   c.Type == ClaimTypes.DateOfBirth).Value,
+					System.Globalization.CultureInfo.InvariantCulture)
+					>= DateTime.Now.AddYears(-18)));
 });
 
 // Code replaced by the [ManualValidationFilter] attribute
@@ -263,6 +308,30 @@ app.MapGet("/cache/test/2",
 (HttpContext context) =>
 	{
 		return Results.Ok();
+	});
+
+app.MapGet("/auth/test/1",
+	[Authorize]
+[EnableCors("AnyOrigin")]
+[ResponseCache(NoStore = true)] () =>
+	{
+		return Results.Ok("You are authorized!");
+	});
+
+app.MapGet("/auth/test/2",
+	[Authorize(Roles = RoleNames.Moderator)]
+[EnableCors("AnyOrigin")]
+[ResponseCache(NoStore = true)] () =>
+	{
+		return Results.Ok("You are authorized!");
+	});
+
+app.MapGet("/auth/test/3",
+	[Authorize(Roles = RoleNames.Administrator)]
+[EnableCors("AnyOrigin")]
+[ResponseCache(NoStore = true)] () =>
+	{
+		return Results.Ok("You are authorized!");
 	});
 
 app.MapControllers();
