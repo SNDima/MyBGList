@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using MyBGList.Attributes;
+using System.ComponentModel.DataAnnotations;
 
 namespace MyBGList.DTO
 {
@@ -6,7 +7,9 @@ namespace MyBGList.DTO
 	{
 		[Required]
 		[MaxLength(255)]
-		public string? UserName { get; set; }
+        [CustomKeyValue("x-test-1", "value 1")]
+		[CustomKeyValue("x-test-2", "value 2")]
+        public string? UserName { get; set; }
 
 		[Required]
 		public string? Password { get; set; }

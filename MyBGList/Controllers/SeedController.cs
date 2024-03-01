@@ -12,6 +12,7 @@ using MyBGList.Constants;
 namespace MyBGList.Controllers
 {
 	[Authorize(Roles = RoleNames.Administrator)]
+	[ApiExplorerSettings(IgnoreApi = true)]
 	[Route("[controller]/[action]")]
 	[ApiController]
 	public class SeedController : ControllerBase
